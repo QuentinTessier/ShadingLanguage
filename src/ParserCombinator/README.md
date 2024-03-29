@@ -20,7 +20,7 @@ Here are the basic parsers found in the library:
 
 | Parser                | Description                                                                                 |
 | --------------------- | ------------------------------------------------------------------------------------------- |
-| ```zig symbol(u8)```            | Try to match the given char                                                                 |
+| symbol(u8)            | Try to match the given char                                                                 |
 | anySymbol()           | Try to match any char                                                                       |
 | range(a: u8, b: u8)   | Try to match any char between a and b                                                       |
 | oneOf([]u8)           | Try to match any char in the given list                                                     |
