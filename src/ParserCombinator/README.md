@@ -1,6 +1,6 @@
 This parser combinator library follows Haskell's combinator lib Parsec.
 
-```
+```zig
 // All parsers follow the same definition:
 pub fn my_parser(input: Input, allocator: std.mem.Allocator) anyerror!Parser.Result(ResultType);
 
