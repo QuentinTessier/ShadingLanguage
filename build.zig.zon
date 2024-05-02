@@ -1,7 +1,12 @@
 .{
     .name = "ShadingLanguage",
     .version = "0.0.0",
-    .dependencies = .{},
+    .dependencies = .{
+        .ZigParsec = .{
+            .url = "https://github.com/QuentinTessier/ZigParsec/archive/refs/tags/0.1.0.tar.gz",
+            .hash = "12206af554e7b4c7b3ec00a66cc020109b3b1f4b1565c558828156059e5f9d450044",
+        },
+    },
     .paths = .{
         "",
     },
