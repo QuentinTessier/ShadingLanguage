@@ -1,39 +1,5 @@
 const std = @import("std");
 
-const qbe_default_source = &.{
-    "qbe-1.2/main.c",
-    "qbe-1.2/util.c",
-    "qbe-1.2/parse.c",
-    "qbe-1.2/abi.c",
-    "qbe-1.2/cfg.c",
-    "qbe-1.2/mem.c",
-    "qbe-1.2/ssa.c",
-    "qbe-1.2/alias.c",
-    "qbe-1.2/load.c",
-    "qbe-1.2/copy.c",
-    "qbe-1.2/fold.c",
-    "qbe-1.2/simpl.c",
-    "qbe-1.2/live.c",
-    "qbe-1.2/spill.c",
-    "qbe-1.2/rega.c",
-    "qbe-1.2/emit.c",
-
-    "qbe-1.2/amd64/targ.c",
-    "qbe-1.2/amd64/sysv.c",
-    "qbe-1.2/amd64/isel.c",
-    "qbe-1.2/amd64/emit.c",
-
-    "qbe-1.2/arm64/targ.c",
-    "qbe-1.2/arm64/abi.c",
-    "qbe-1.2/arm64/isel.c",
-    "qbe-1.2/arm64/emit.c",
-
-    "qbe-1.2/rv64/targ.c",
-    "qbe-1.2/rv64/abi.c",
-    "qbe-1.2/rv64/isel.c",
-    "qbe-1.2/rv64/emit.c",
-};
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
 

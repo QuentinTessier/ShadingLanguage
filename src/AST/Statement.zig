@@ -114,6 +114,48 @@ pub const VariableStatement = struct {
     }
 };
 
+pub const StructureField = struct {
+    name: []u8,
+    type: LazyType,
+};
+
+pub const StructureStatement = struct {
+    name: []const u8,
+    fields: []StructureField,
+};
+
+pub const IfStatement = struct {
+    condition: *Expression,
+    then: *Statement,
+    @"else": ?*Statement,
+
+    pub fn deinit(self: IfStatement, allocator: std.mem.Allocator) void {
+        self.condition.deinit(allocator);
+        allocator.destroy(self.condition);
+
+        self.then.deinit(allocator);
+        allocator.destroy(self.then);
+
+        if (self.@"else") |e| {
+            e.deinit(allocator);
+            allocator.destroy(e);
+        }
+    }
+};
+
+pub const WhileStatement = struct {
+    condition: *Expression,
+    body: *Statement,
+
+    pub fn deinit(self: WhileStatement, allocator: std.mem.Allocator) void {
+        self.condition.deinit(allocator);
+        allocator.destroy(self.condition);
+
+        self.body.deinit(allocator);
+        allocator.destroy(self.body);
+    }
+};
+
 // <public> | <entry> | <function> | <block> | <expressionStmt> | <constant> | <variable>
 pub const Statement = union(enum(u32)) {
     public: PublicSymbol,
@@ -123,6 +165,8 @@ pub const Statement = union(enum(u32)) {
     expression: ExpressionStatement,
     constant: ConstantStatement,
     variable: VariableStatement,
+    @"if": IfStatement,
+    @"while": WhileStatement,
 
     pub fn deinit(self: *Statement, allocator: std.mem.Allocator) void {
         switch (self.*) {
@@ -148,6 +192,12 @@ pub const Statement = union(enum(u32)) {
             },
             .variable => |v| {
                 v.deinit(allocator);
+            },
+            .@"if" => |ifStmt| {
+                ifStmt.deinit(allocator);
+            },
+            .@"while" => |whileStmt| {
+                whileStmt.deinit(allocator);
             },
         }
     }

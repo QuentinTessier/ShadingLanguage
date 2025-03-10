@@ -15,9 +15,16 @@ pub const S = struct {
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
 
     const allocator = gpa.allocator();
+
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    const arenaAllocator = arena.allocator();
+
+    defer {
+        arena.deinit();
+        _ = gpa.deinit();
+    }
 
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
@@ -39,7 +46,7 @@ pub fn main() !void {
     const state = try P.createParserState(allocator);
     defer P.destroyParserState(allocator, state);
 
-    switch (try Statement.statement(s, allocator, state)) {
+    switch (try Statement.statement(s, arenaAllocator, state)) {
         .Result => |res| {
             std.log.info("{any}", .{res.value});
             res.value.deinit(allocator);

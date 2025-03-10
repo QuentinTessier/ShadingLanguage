@@ -1,0 +1,28 @@
+namespace std = @import("std.sl");
+
+struct MyStruct {
+    x: uint,
+    y: f32,
+};
+
+attributes Input {
+    position : @<location(0), binding(1)> vec3,
+    texCoords: vec2,
+};
+
+attributes Output {
+    position : vec3, // infer location and binding
+    texCoords: vec2,
+
+    pub fn init() Output {
+        return .{
+            .position = vec3(0, 0, 0),
+            .texCoords = vec2(0, 0),
+        };
+    }
+};
+
+entry @fragment main : (in: Input, s: Sampler2D) -> Output {
+    var output : Output = undefined;
+    const instanceId : i32 = @instance_id;
+}

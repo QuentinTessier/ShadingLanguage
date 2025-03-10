@@ -41,8 +41,8 @@ pub fn MakeUnaryOperatorBuidler(comptime op: S.PrefixUnaryExpressionKind) fn (st
     }.inlineBuilder;
 }
 
-pub fn createParserState(allocator: std.mem.Allocator) !*Parser.ZigParsecState {
-    const state = try allocator.create(Parser.ZigParsecState);
+pub fn createParserState(allocator: std.mem.Allocator) !*Parser.BaseState {
+    const state = try allocator.create(Parser.BaseState);
     state.* = .{
         .extensions = try ExprP.Operators.createStateExtension(allocator, &.{
             ExprP.InfixOperator.new(.{ Parser.Language.operator, .{ "=", "=" } }, .{ .RightAssoc = 10 }, MakeBinaryOperatorBuilder(.Assignment)),
@@ -85,12 +85,12 @@ pub fn createParserState(allocator: std.mem.Allocator) !*Parser.ZigParsecState {
     return state;
 }
 
-pub fn destroyParserState(allocator: std.mem.Allocator, state: *Parser.ZigParsecState) void {
+pub fn destroyParserState(allocator: std.mem.Allocator, state: *Parser.BaseState) void {
     ExprP.Operators.destroyStateExtension(allocator, state);
     allocator.destroy(state);
 }
 
-pub fn integerLiteralP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(*S.Expression) {
+pub fn integerLiteralP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(*S.Expression) {
     var end = stream;
     switch (try Parser.Char.digit(stream, allocator, state)) {
         .Result => |res| {
@@ -121,7 +121,7 @@ pub fn integerLiteralP(stream: Parser.Stream, allocator: std.mem.Allocator, stat
     return Parser.Result(*S.Expression).success(literal, end);
 }
 
-pub fn floatLiteralP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(*S.Expression) {
+pub fn floatLiteralP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(*S.Expression) {
     var end = stream;
     switch (try Parser.Char.digit(stream, allocator, state)) {
         .Result => |res| {
@@ -178,7 +178,7 @@ pub fn floatLiteralP(stream: Parser.Stream, allocator: std.mem.Allocator, state:
     return Parser.Result(*S.Expression).success(literal, end);
 }
 
-pub fn identifierP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(*S.Expression) {
+pub fn identifierP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(*S.Expression) {
     return Parser.map(
         stream,
         allocator,
@@ -198,7 +198,7 @@ pub fn identifierP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *
     );
 }
 
-pub fn subExpressionP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(*S.Expression) {
+pub fn subExpressionP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(*S.Expression) {
     return Parser.Combinator.between(
         stream,
         allocator,
@@ -210,7 +210,7 @@ pub fn subExpressionP(stream: Parser.Stream, allocator: std.mem.Allocator, state
     );
 }
 
-pub fn term(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(*S.Expression) {
+pub fn term(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(*S.Expression) {
     return Parser.Language.eatWhitespaceBefore(stream, allocator, state, *S.Expression, .{ Parser.Combinator.choice, .{
         *S.Expression,
         .{
@@ -222,6 +222,6 @@ pub fn term(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.
     } });
 }
 
-pub fn expression(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(*S.Expression) {
+pub fn expression(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(*S.Expression) {
     return ExprP.expression(stream, allocator, state, term);
 }

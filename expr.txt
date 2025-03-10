@@ -1,0 +1,5 @@
+entry @vertex main : (
+    in: Input,
+    samplers: Samplers,
+) -> Output {
+}

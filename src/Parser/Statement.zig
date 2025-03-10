@@ -2,11 +2,12 @@ const std = @import("std");
 const Parser = @import("ZigParsec");
 const S = @import("../AST/Statement.zig");
 
+const Expression = @import("../AST/Expression.zig").Expression;
 const expression = @import("Expression.zig").expression;
 
 const Result = Parser.Result(*S.Statement);
 
-pub fn typeP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.LazyType) {
+pub fn typeP1(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.LazyType) {
     return Parser.map(stream, allocator, state, []u8, Parser.Language.identifier, S.LazyType, struct {
         pub fn inlineMap(_: std.mem.Allocator, name: []u8) anyerror!S.LazyType {
             return .{
@@ -16,7 +17,11 @@ pub fn typeP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser
     }.inlineMap);
 }
 
-pub fn optionalTypeP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.LazyType) {
+pub fn typeP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.LazyType) {
+    return Parser.Language.eatWhitespaceBefore(stream, allocator, state, S.LazyType, typeP1);
+}
+
+pub fn optionalTypeP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.LazyType) {
     return switch (try Parser.Language.eatWhitespaceBefore(stream, allocator, state, u8, .{ Parser.Char.symbol, .{':'} })) {
         .Result => |res| typeP(res.rest, allocator, state),
         .Error => |err| blk: {
@@ -26,7 +31,7 @@ pub fn optionalTypeP(stream: Parser.Stream, allocator: std.mem.Allocator, state:
     };
 }
 
-pub fn funArg(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.FunctionArgument) {
+pub fn funArg(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.FunctionArgument) {
     return Parser.toStruct(stream, allocator, state, S.FunctionArgument, &.{
         &.{ .name, []u8, .{ Parser.Language.eatWhitespaceBefore, .{ []u8, Parser.Language.identifier } } },
         &.{ void, u8, .{ Parser.Language.eatWhitespaceBefore, .{ u8, .{ Parser.Char.symbol, .{':'} } } } },
@@ -34,7 +39,7 @@ pub fn funArg(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parse
     });
 }
 
-pub fn funArgs(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result([]S.FunctionArgument) {
+pub fn funArgs(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result([]S.FunctionArgument) {
     return Parser.Combinator.between(
         stream,
         allocator,
@@ -46,7 +51,7 @@ pub fn funArgs(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Pars
     );
 }
 
-pub fn funDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.FunctionDefinition) {
+pub fn funDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.FunctionDefinition) {
     return Parser.toStruct(
         stream,
         allocator,
@@ -64,7 +69,7 @@ pub fn funDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state:
     );
 }
 
-pub fn entryDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.EntryDefinition) {
+pub fn entryDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.EntryDefinition) {
     return Parser.toStruct(
         stream,
         allocator,
@@ -83,7 +88,7 @@ pub fn entryDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, stat
     );
 }
 
-pub fn expressionDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.ExpressionStatement) {
+pub fn expressionDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.ExpressionStatement) {
     switch (try expression(stream, allocator, state)) {
         .Result => |res| switch (try Parser.Language.eatWhitespaceBefore(
             res.rest,
@@ -103,19 +108,19 @@ pub fn expressionDefinition(stream: Parser.Stream, allocator: std.mem.Allocator,
     }
 }
 
-pub fn blockDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.BlockStatement) {
+pub fn blockDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.BlockStatement) {
     return Parser.Combinator.between(
         stream,
         allocator,
         state,
         .{ u8, []*S.Statement, u8 },
         .{ Parser.Language.eatWhitespaceBefore, .{ u8, .{ Parser.Char.symbol, .{'{'} } } },
-        .{ Parser.Combinator.many, .{ *S.Statement, statement } },
+        .{ Parser.Combinator.many, .{ *S.Statement, scopedStatement } },
         .{ Parser.Language.eatWhitespaceBefore, .{ u8, .{ Parser.Char.symbol, .{'}'} } } },
     );
 }
 
-pub fn publicDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.PublicSymbol) {
+pub fn publicDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.PublicSymbol) {
     return switch (try Parser.Language.reserved(stream, allocator, state, "pub")) {
         .Result => |res| switch (try statement(res.rest, allocator, state)) {
             .Result => |s| Parser.Result(S.PublicSymbol).success(s.value, s.rest),
@@ -125,24 +130,76 @@ pub fn publicDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, sta
     };
 }
 
-pub fn constantDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.ConstantStatement) {
+pub fn constantDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.ConstantStatement) {
     return Parser.toStruct(stream, allocator, state, S.ConstantStatement, &.{
-        .{ void, []const u8, .{ Parser.Language.reserved, .{"const"} } },
+        .{ void, []const u8, .{ Parser.Language.eatWhitespaceBefore, .{ []const u8, .{ Parser.Language.reserved, .{"const"} } } } },
         .{ .name, []u8, .{ Parser.Language.eatWhitespaceBefore, .{ []u8, Parser.Language.identifier } } },
         .{ .type, S.LazyType, optionalTypeP },
-        .{ void, []const u8, .{ Parser.Language.operator, .{ "=", "=" } } },
-        .{ .value, *S.Statement, statement },
+        .{ void, []const u8, .{ Parser.Language.eatWhitespaceBefore, .{ []const u8, .{ Parser.Language.operator, .{ "=", "=" } } } } },
+        .{ .value, *S.Statement, scopedStatement },
     });
 }
 
-pub fn stageVertexP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.Stage) {
+pub fn variableDefinition(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.VariableStatement) {
+    return Parser.toStruct(stream, allocator, state, S.VariableStatement, &.{
+        .{ void, []const u8, .{ Parser.Language.eatWhitespaceBefore, .{ []const u8, .{ Parser.Language.reserved, .{"var"} } } } },
+        .{ .name, []u8, .{ Parser.Language.eatWhitespaceBefore, .{ []u8, Parser.Language.identifier } } },
+        .{ .type, S.LazyType, optionalTypeP },
+        .{ void, []const u8, .{ Parser.Language.eatWhitespaceBefore, .{ []const u8, .{ Parser.Language.operator, .{ "=", "=" } } } } },
+        .{ .value, *S.Statement, scopedStatement },
+    });
+}
+
+fn conditionExpression(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(*Expression) {
+    return Parser.Combinator.between(
+        stream,
+        allocator,
+        state,
+        .{ u8, *Expression, u8 },
+        .{ Parser.Language.eatWhitespaceBefore, .{ u8, .{ Parser.Char.symbol, .{'('} } } },
+        expression,
+        .{ Parser.Language.eatWhitespaceBefore, .{ u8, .{ Parser.Char.symbol, .{')'} } } },
+    );
+}
+
+pub fn elseStatement(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(?*S.Statement) {
+    return switch (try Parser.Language.reserved(stream, allocator, state, "else")) {
+        .Result => |res| switch (try scopedStatement(res.rest, allocator, state)) {
+            .Result => |res1| Parser.Result(?*S.Statement).success(res1.value, res1.rest),
+            .Error => |err| Parser.Result(?*S.Statement).failure(err.msg, err.rest),
+        },
+        .Error => |err| blk: {
+            err.msg.deinit();
+            break :blk Parser.Result(?*S.Statement).success(null, err.rest);
+        },
+    };
+}
+
+pub fn ifStatement(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.IfStatement) {
+    return Parser.toStruct(stream, allocator, state, S.IfStatement, &.{
+        .{ void, []const u8, .{ Parser.Language.eatWhitespaceBefore, .{ []const u8, .{ Parser.Language.reserved, .{"if"} } } } },
+        .{ .condition, *Expression, .{ Parser.Language.eatWhitespaceBefore, .{ *Expression, conditionExpression } } },
+        .{ .then, *S.Statement, scopedStatement },
+        .{ .@"else", ?*S.Statement, .{ Parser.Language.eatWhitespaceBefore, .{ ?*S.Statement, elseStatement } } },
+    });
+}
+
+pub fn whileStatement(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.WhileStatement) {
+    return Parser.toStruct(stream, allocator, state, S.WhileStatement, &.{
+        .{ void, []const u8, .{ Parser.Language.eatWhitespaceBefore, .{ []const u8, .{ Parser.Language.reserved, .{"while"} } } } },
+        .{ .condition, *Expression, .{ Parser.Language.eatWhitespaceBefore, .{ *Expression, conditionExpression } } },
+        .{ .body, *S.Statement, scopedStatement },
+    });
+}
+
+pub fn stageVertexP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.Stage) {
     return switch (try Parser.Language.reserved(stream, allocator, state, "vertex")) {
         .Result => |res| Parser.Result(S.Stage).success(.Vertex, res.rest),
         .Error => |err| Parser.Result(S.Stage).failure(err.msg, err.rest),
     };
 }
 
-pub fn stageFragmentP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.Stage) {
+pub fn stageFragmentP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.Stage) {
     return switch (try Parser.Language.reserved(stream, allocator, state, "fragment")) {
         .Result => |res| Parser.Result(S.Stage).success(.Fragment, res.rest),
         .Error => |err| Parser.Result(S.Stage).failure(err.msg, err.rest),
@@ -155,7 +212,7 @@ pub const Modifier = union(enum(u32)) {
     binding: u32,
 };
 
-pub fn modifier(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.Modifier) {
+pub fn modifier(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.Modifier) {
     return Parser.Language.eatWhitespaceBefore(stream, allocator, state, S.Modifier, .{
         Parser.toTaggedUnion,
         .{
@@ -167,7 +224,7 @@ pub fn modifier(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Par
     });
 }
 
-pub fn modifiers(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result([]S.Modifier) {
+pub fn modifiers(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result([]S.Modifier) {
     return Parser.Combinator.between(
         stream,
         allocator,
@@ -184,7 +241,7 @@ pub fn modifiers(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Pa
     );
 }
 
-pub fn maybeModifiers(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(?[]S.Modifier) {
+pub fn maybeModifiers(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(?[]S.Modifier) {
     return switch (try Parser.Language.eatWhitespaceBefore(
         stream,
         allocator,
@@ -211,14 +268,14 @@ pub fn maybeModifiers(stream: Parser.Stream, allocator: std.mem.Allocator, state
     };
 }
 
-pub fn statementP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(S.Statement) {
+pub fn scopedStatementP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.Statement) {
     return Parser.toTaggedUnion(stream, allocator, state, S.Statement, .{
-        .{ .public, S.PublicSymbol, publicDefinition },
-        .{ .entry, S.EntryDefinition, entryDefinition },
-        .{ .function, S.FunctionDefinition, funDefinition },
         .{ .constant, S.ConstantStatement, constantDefinition },
+        .{ .variable, S.VariableStatement, variableDefinition },
         .{ .block, S.BlockStatement, blockDefinition },
         .{ .expression, S.ExpressionStatement, expressionDefinition },
+        .{ .@"if", S.IfStatement, ifStatement },
+        .{ .@"while", S.WhileStatement, whileStatement },
     });
 }
 
@@ -228,6 +285,24 @@ pub fn promote(allocator: std.mem.Allocator, stmt: S.Statement) anyerror!*S.Stat
     return s;
 }
 
-pub fn statement(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.ZigParsecState) anyerror!Parser.Result(*S.Statement) {
+pub fn statementP(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(S.Statement) {
+    return Parser.toTaggedUnion(stream, allocator, state, S.Statement, .{
+        .{ .public, S.PublicSymbol, publicDefinition },
+        .{ .entry, S.EntryDefinition, entryDefinition },
+        .{ .function, S.FunctionDefinition, funDefinition },
+        .{ .constant, S.ConstantStatement, constantDefinition },
+        .{ .variable, S.VariableStatement, variableDefinition },
+        .{ .block, S.BlockStatement, blockDefinition },
+        .{ .expression, S.ExpressionStatement, expressionDefinition },
+        .{ .@"if", S.IfStatement, ifStatement },
+        .{ .@"while", S.WhileStatement, whileStatement },
+    });
+}
+
+pub fn statement(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(*S.Statement) {
     return Parser.map(stream, allocator, state, S.Statement, statementP, *S.Statement, promote);
+}
+
+pub fn scopedStatement(stream: Parser.Stream, allocator: std.mem.Allocator, state: *Parser.BaseState) anyerror!Parser.Result(*S.Statement) {
+    return Parser.map(stream, allocator, state, S.Statement, scopedStatementP, *S.Statement, promote);
 }

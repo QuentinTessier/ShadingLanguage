@@ -3,8 +3,9 @@
     .version = "0.0.0",
     .dependencies = .{
         .ZigParsec = .{
-            .url = "https://github.com/QuentinTessier/ZigParsec/archive/refs/tags/0.1.1.tar.gz",
-            .hash = "1220bf875e3fc633eacccebae5bd97422a6ecfd8fc6ab13cd26e4fa1fcfda3552e7b",
+            .path = "../ZigParsec",
+            //.url = "https://github.com/QuentinTessier/ZigParsec/archive/refs/tags/0.1.1.tar.gz",
+            //.hash = "1220bf875e3fc633eacccebae5bd97422a6ecfd8fc6ab13cd26e4fa1fcfda3552e7b",
         },
     },
     .paths = .{
